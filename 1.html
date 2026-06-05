@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>决策助手</title>
+    <style>
+        /* ===== 全局重置 & 主题 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            background: #0d0d0d;
+            color: #fff;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #app {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            height: 100dvh;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+            border-radius: 0;
+            overflow: hidden;
+        }
+        /* 针对大屏幕圆角 */
+        @media (min-width: 600px) and (min-height: 700px) {
+            #app {
+                border-radius: 32px;
+                height: 90vh;
+                height: 90dvh;
+                max-height: 820px;
+            }
+        }
+
+        /* ===== 顶部标题栏 ===== */
+        .header {
+            padding: 14px 16px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: #111;
+            z-index: 10;
+            min-height: 56px;
+        }
+        .header .title-area {
+            flex: 1;
+            text-align: center;
+            padding: 0 4px;
+        }
+        .header .title-area h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #4a9eff;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .header .title-area .subtitle {
+            font-size: 12px;
+            color: #888;
+            margin-top: 1px;
+        }
+        .header .icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #4a9eff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .header .icon-btn:active {
+            background: rgba(74, 158, 255, 0.15);
+        }
+        .header .icon-btn.edit-btn {
+            font-size: 16px;
+        }
+
+        /* ===== 主要内容区 ===== */
+        .main-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .tab-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+            padding: 8px 12px 12px;
+        }
+        .tab-page.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ===== 底部导航 ===== */
+        .bottom-nav {
+            display: flex;
+            align-items: stretch;
+            background: #1a1a1a;
+            border-top: 1px solid #2a2a2a;
+            flex-shrink: 0;
+            padding: 4px 0 env(safe-area-inset-bottom, 6px);
+            z-index: 10;
+            min-height: 58px;
+        }
+        .bottom-nav .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 0;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            transition: color 0.2s;
+            gap: 1px;
+        }
+        .bottom-nav .nav-item .icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+        .bottom-nav .nav-item .label {
+            font-size: 10px;
+            font-weight: 500;
+        }
+        .bottom-nav .nav-item.active {
+            color: #4a9eff;
+        }
+        .bottom-nav .nav-item:active {
+            opacity: 0.6;
+        }
+
+        /* ============================================================ */
+        /* ===== 转盘页面 ===== */
+        /* ============================================================ */
+        .wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            position: relative;
+            gap: 8px;
+        }
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 1/1;
+            margin: 0 auto;
+        }
+        .wheel-wrapper canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+            border-radius: 50%;
+            touch-action: none;
+        }
+        /* 固定指针 */
+        .pointer {
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-top: 28px solid #ff3b30;
+            z-index: 5;
+            filter: drop-shadow(0 2px 8px rgba(255, 59, 48, 0.6));
+        }
+        /* 中心装饰 */
+        .center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14%;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, #555, #1a1a1a);
+            border: 3px solid #333;
+            box-shadow: 0 0 16px rgba(0, 0, 0, 0.8);
+            z-index: 3;
+            pointer-events: none;
+        }
+        .center-dot::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40%;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 30%, #666, #222);
+            border: 1px solid #444;
+        }
+
+        /* 转盘操作按钮 */
+        .wheel-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 380px;
+            padding: 0 4px;
+        }
+        .wheel-actions .btn {
+            padding: 10px 24px;
+            border-radius: 30px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #2a2a2a;
+            color: #ccc;
+            flex: 1;
+            min-width: 80px;
+            max-width: 160px;
+            white-space: nowrap;
+        }
+        .wheel-actions .btn:active {
+            transform: scale(0.95);
+        }
+        .wheel-actions .btn-primary {
+            background: #4a9eff;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(74, 158, 255, 0.3);
+        }
+        .wheel-actions .btn-primary:active {
+            background: #3a8aee;
+        }
+        .wheel-actions .btn-secondary {
+            background: #2a2a2a;
+            color: #aaa;
+        }
+        .wheel-actions .btn-secondary:active {
+            background: #3a3a3a;
+        }
+
+        /* ===== 编辑模态框 ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(6px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal-box {
+            background: #1e1e1e;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            max-height: 80dvh;
+            padding: 20px 16px 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-box h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #eee;
+            text-align: center;
+        }
+        .modal-box .form-group {
+            margin-bottom: 12px;
+        }
+        .modal-box .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #aaa;
+            margin-bottom: 3px;
+        }
+        .modal-box .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #111;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .modal-box .form-group input:focus {
+            border-color: #4a9eff;
+        }
+        .modal-box .options-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 180px;
+            margin: 4px 0 8px;
+            padding-right: 4px;
+        }
+        .modal-box .options-list::-webkit-scrollbar {
+            width: 3px;
+        }
+        .modal-box .options-list::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        .modal-box .option-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            background: #1a1a1a;
+            margin-bottom: 3px;
+        }
+        .modal-box .option-item input {
+            flex: 1;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #111;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+        .modal-box .option-item input:focus {
+            border-color: #4a9eff;
+        }
+        .modal-box .option-item .del-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: #ff3b30;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+        .modal-box .option-item .del-btn:active {
+            opacity: 0.6;
+        }
+        .modal-box .add-option-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .modal-box .add-option-row input {
+            flex: 1;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #111;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+        .modal-box .add-option-row input:focus {
+            border-color: #4a9eff;
+        }
+        .modal-box .add-option-row .add-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            background: #4a9eff;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .modal-box .add-option-row .add-btn:active {
+            opacity: 0.7;
+        }
+        .modal-box .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #2a2a2a;
+        }
+        .modal-box .modal-actions .btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-box .modal-actions .btn:active {
+            transform: scale(0.96);
+        }
+        .modal-box .modal-actions .btn-cancel {
+            background: #2a2a2a;
+            color: #aaa;
+        }
+        .modal-box .modal-actions .btn-save {
+            background: #4a9eff;
+            color: #fff;
+        }
+
+        /* ===== 结果弹窗 ===== */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .result-overlay.open {
+            display: flex;
+        }
+        .result-box {
+            background: #1a1a1a;
+            border-radius: 24px;
+            padding: 30px 24px 22px;
+            text-align: center;
+            max-width: 320px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .result-box .emoji {
+            font-size: 42px;
+            margin-bottom: 4px;
+        }
+        .result-box .title {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        .result-box .result-text {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin: 4px 0 14px;
+        }
+        .result-box .result-text.highlight {
+            color: #4a9eff;
+        }
+        .result-box .btn-close-result {
+            padding: 8px 36px;
+            border-radius: 30px;
+            border: none;
+            background: #4a9eff;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .result-box .btn-close-result:active {
+            transform: scale(0.95);
+        }
+
+        /* ============================================================ */
+        /* ===== 数字页面 ===== */
+        /* ============================================================ */
+        .number-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 12px;
+            flex: 1;
+            width: 100%;
+        }
+        .number-page .range-display {
+            font-size: 14px;
+            color: #888;
+            background: #1a1a1a;
+            padding: 6px 16px;
+            border-radius: 16px;
+            border: 1px solid #2a2a2a;
+        }
+        .number-page .big-number {
+            font-size: 100px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 0 40px rgba(74, 158, 255, 0.15);
+            transition: all 0.2s;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .number-page .big-number.pop {
+            animation: numberPop 0.3s ease;
+        }
+        @keyframes numberPop {
+            0% {
+                transform: scale(0.6);
+                opacity: 0.4;
+            }
+            60% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .number-page .range-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #1a1a1a;
+            padding: 8px 14px;
+            border-radius: 14px;
+            border: 1px solid #2a2a2a;
+        }
+        .number-page .range-controls label {
+            color: #aaa;
+            font-size: 13px;
+        }
+        .number-page .range-controls input {
+            width: 50px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #111;
+            color: #fff;
+            font-size: 14px;
+            text-align: center;
+            outline: none;
+        }
+        .number-page .range-controls input:focus {
+            border-color: #4a9eff;
+        }
+        .number-page .btn-generate {
+            padding: 12px 40px;
+            border-radius: 30px;
+            border: none;
+            background: #4a9eff;
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(74, 158, 255, 0.3);
+            transition: all 0.2s;
+        }
+        .number-page .btn-generate:active {
+            transform: scale(0.95);
+        }
+
+        /* ============================================================ */
+        /* ===== 硬币页面 - 上下翻转 ===== */
+        /* ============================================================ */
+        .coin-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 12px;
+            flex: 1;
+            width: 100%;
+        }
+        .coin-page .coin-stats {
+            display: flex;
+            gap: 24px;
+            font-size: 13px;
+            color: #888;
+        }
+        .coin-page .coin-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .coin-page .coin-stats .count {
+            font-weight: 700;
+            color: #eee;
+            font-size: 16px;
+        }
+
+        /* 3D硬币 - 上下翻转 (rotateX) */
+        .coin-scene {
+            width: 140px;
+            height: 140px;
+            perspective: 700px;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .coin-scene .coin {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+            border-radius: 50%;
+        }
+        .coin-scene .coin-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: 800;
+            border: 4px solid #f5c542;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+        }
+        .coin-scene .coin-face.front {
+            background: radial-gradient(circle at 35% 30%, #ffe066, #f5c542);
+            color: #8b6d1f;
+            transform: rotateX(0deg);
+        }
+        .coin-scene .coin-face.front .label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1;
+        }
+        .coin-scene .coin-face.front .label .main {
+            font-size: 38px;
+        }
+        .coin-scene .coin-face.front .label .sub {
+            font-size: 12px;
+            font-weight: 400;
+            color: #8b6d1f;
+        }
+        .coin-scene .coin-face.back {
+            background: radial-gradient(circle at 35% 30%, #ffe066, #f5c542);
+            color: #8b6d1f;
+            transform: rotateX(180deg);
+        }
+        .coin-scene .coin-face.back .label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1;
+        }
+        .coin-scene .coin-face.back .label .main {
+            font-size: 38px;
+        }
+        .coin-scene .coin-face.back .label .sub {
+            font-size: 12px;
+            font-weight: 400;
+            color: #8b6d1f;
+        }
+
+        .coin-page .btn-flip {
+            padding: 12px 40px;
+            border-radius: 30px;
+            border: none;
+            background: #f5c542;
+            color: #5a3e00;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(245, 197, 66, 0.3);
+            transition: all 0.2s;
+        }
+        .coin-page .btn-flip:active {
+            transform: scale(0.95);
+        }
+
+        /* ===== 响应式微调 ===== */
+        @media (max-width: 420px) {
+            .header .title-area h1 {
+                font-size: 16px;
+            }
+            .header {
+                padding: 10px 12px 8px;
+                min-height: 48px;
+            }
+            .header .icon-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 18px;
+            }
+            .wheel-wrapper {
+                max-width: 300px;
+            }
+            .wheel-actions .btn {
+                padding: 8px 16px;
+                font-size: 14px;
+                min-width: 60px;
+            }
+            .number-page .big-number {
+                font-size: 72px;
+                min-height: 80px;
+            }
+            .coin-scene {
+                width: 120px;
+                height: 120px;
+            }
+            .coin-scene .coin-face {
+                font-size: 30px;
+            }
+            .coin-scene .coin-face.front .label .main {
+                font-size: 32px;
+            }
+            .coin-scene .coin-face.back .label .main {
+                font-size: 32px;
+            }
+            .result-box .result-text {
+                font-size: 24px;
+            }
+            .modal-box {
+                padding: 16px 12px;
+            }
+            .bottom-nav {
+                min-height: 50px;
+            }
+            .bottom-nav .nav-item .icon {
+                font-size: 20px;
+            }
+        }
+        @media (max-width: 360px) {
+            .wheel-wrapper {
+                max-width: 250px;
+            }
+            .number-page .big-number {
+                font-size: 56px;
+                min-height: 64px;
+            }
+            .coin-scene {
+                width: 100px;
+                height: 100px;
+            }
+            .coin-scene .coin-face {
+                font-size: 24px;
+            }
+            .coin-scene .coin-face.front .label .main {
+                font-size: 26px;
+            }
+            .coin-scene .coin-face.back .label .main {
+                font-size: 26px;
+            }
+            .header .title-area h1 {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+
+        <!-- ===== 顶部栏 ===== -->
+        <div class="header">
+            <button class="icon-btn" id="settingsBtn" aria-label="设置">⚙</button>
+            <div class="title-area">
+                <h1 id="mainTitle">今晚吃点啥？</h1>
+                <div class="subtitle" id="tabSubtitle">转盘决定</div>
+            </div>
+            <button class="icon-btn edit-btn" id="editBtn" aria-label="编辑选项">✎</button>
+        </div>
+
+        <!-- ===== 主要内容 ===== -->
+        <div class="main-content">
+
+            <!-- 转盘页 -->
+            <div class="tab-page active" id="pageWheel">
+                <div class="wheel-container">
+                    <div class="wheel-wrapper">
+                        <canvas id="wheelCanvas" width="600" height="600"></canvas>
+                        <div class="pointer"></div>
+                        <div class="center-dot"></div>
+                    </div>
+                    <div class="wheel-actions">
+                        <button class="btn btn-primary" id="spinBtn">🎯 旋转</button>
+                        <button class="btn btn-secondary" id="resetSpinBtn">↺ 重置</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数字页 -->
+            <div class="tab-page" id="pageNumber">
+                <div class="number-page">
+                    <div class="range-display">范围 <span id="rangeDisplay">1 ~ 100</span></div>
+                    <div class="big-number" id="numberDisplay">61</div>
+                    <div class="range-controls">
+                        <label>从</label>
+                        <input type="number" id="rangeMin" value="1" min="1" max="9999" />
+                        <label>到</label>
+                        <input type="number" id="rangeMax" value="100" min="1" max="9999" />
+                    </div>
+                    <button class="btn-generate" id="generateNumberBtn">🎲 生成随机数</button>
+                </div>
+            </div>
+
+            <!-- 硬币页 -->
+            <div class="tab-page" id="pageCoin">
+                <div class="coin-page">
+                    <div class="coin-stats">
+                        <span>YES <span class="count" id="yesCount">0</span></span>
+                        <span>NO <span class="count" id="noCount">0</span></span>
+                    </div>
+                    <div class="coin-scene" id="coinScene">
+                        <div class="coin" id="coin3d">
+                            <div class="coin-face front">
+                                <div class="label">
+                                    <span class="main">YES</span>
+                                    <span class="sub">✔</span>
+                                </div>
+                            </div>
+                            <div class="coin-face back">
+                                <div class="label">
+                                    <span class="main">NO</span>
+                                    <span class="sub">✘</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-flip" id="flipCoinBtn">🪙 抛硬币</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== 底部导航 ===== -->
+        <div class="bottom-nav">
+            <button class="nav-item active" data-tab="wheel">
+                <span class="icon">🎡</span>
+                <span class="label">转盘</span>
+            </button>
+            <button class="nav-item" data-tab="number">
+                <span class="icon">🔢</span>
+                <span class="label">数字</span>
+            </button>
+            <button class="nav-item" data-tab="coin">
+                <span class="icon">🪙</span>
+                <span class="label">硬币</span>
+            </button>
+        </div>
+
+        <!-- ===== 结果弹窗 ===== -->
+        <div class="result-overlay" id="resultOverlay">
+            <div class="result-box">
+                <div class="emoji" id="resultEmoji">🎉</div>
+                <div class="title" id="resultTitle">选择结果</div>
+                <div class="result-text highlight" id="resultText">火锅</div>
+                <button class="btn-close-result" id="closeResultBtn">确定</button>
+            </div>
+        </div>
+
+        <!-- ===== 编辑模态框 ===== -->
+        <div class="modal-overlay" id="editModal">
+            <div class="modal-box">
+                <h2>✎ 编辑选项</h2>
+                <div class="form-group">
+                    <label>标题</label>
+                    <input type="text" id="modalTitleInput" value="今晚吃点啥？" />
+                </div>
+                <div class="form-group">
+                    <label>选项列表</label>
+                    <div class="options-list" id="modalOptionsList"></div>
+                    <div class="add-option-row">
+                        <input type="text" id="modalNewOptionInput" placeholder="输入新选项..." />
+                        <button class="add-btn" id="modalAddOptionBtn">添加</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-cancel" id="modalCancelBtn">取消</button>
+                    <button class="btn btn-save" id="modalSaveBtn">保存</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ================================================================
+        //  全局状态
+        // ================================================================
+        const STATE = {
+            // 转盘
+            options: ['火锅', '饺子', '面条', '日料', '泰国菜', '韩餐'],
+            wheelRotation: 0,
+            isSpinning: false,
+            spinHistory: [],
+            title: '今晚吃点啥？',
+
+            // 硬币 - 使用 rotateX 上下翻转
+            coinRotationX: 0,
+            isFlipping: false,
+            yesCount: 0,
+            noCount: 0,
+
+            // 当前tab
+            currentTab: 'wheel',
+        };
+
+        // 颜色方案
+        const COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+            '#FFEAA7', '#DDA0DD', '#FF8A80', '#A29BFE',
+            '#FD79A8', '#00CEC9', '#FDCB6E', '#6C5CE7',
+            '#00B894', '#E17055', '#0984E3', '#FAB1A0'
+        ];
+
+        // ================================================================
+        //  DOM 引用
+        // ================================================================
+        const $ = id => document.getElementById(id);
+        const canvas = $('wheelCanvas');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = $('spinBtn');
+        const resetSpinBtn = $('resetSpinBtn');
+        const editBtn = $('editBtn');
+        const editModal = $('editModal');
+        const modalTitleInput = $('modalTitleInput');
+        const modalOptionsList = $('modalOptionsList');
+        const modalNewOptionInput = $('modalNewOptionInput');
+        const modalAddOptionBtn = $('modalAddOptionBtn');
+        const modalCancelBtn = $('modalCancelBtn');
+        const modalSaveBtn = $('modalSaveBtn');
+        const resultOverlay = $('resultOverlay');
+        const resultEmoji = $('resultEmoji');
+        const resultTitle = $('resultTitle');
+        const resultText = $('resultText');
+        const closeResultBtn = $('closeResultBtn');
+        const mainTitle = $('mainTitle');
+        const tabSubtitle = $('tabSubtitle');
+        const numberDisplay = $('numberDisplay');
+        const rangeMin = $('rangeMin');
+        const rangeMax = $('rangeMax');
+        const rangeDisplay = $('rangeDisplay');
+        const generateNumberBtn = $('generateNumberBtn');
+        const coinScene = $('coinScene');
+        const coin3d = $('coin3d');
+        const flipCoinBtn = $('flipCoinBtn');
+        const yesCount = $('yesCount');
+        const noCount = $('noCount');
+        const settingsBtn = $('settingsBtn');
+
+        // 导航
+        const navItems = document.querySelectorAll('.nav-item');
+
+        // ================================================================
+        //  转盘绘制
+        // ================================================================
+        function drawWheel(rotation) {
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = Math.min(w, h) * 0.42;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const n = STATE.options.length;
+            if (n === 0) {
+                ctx.fillStyle = '#333';
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('请添加选项', cx, cy);
+                return;
+            }
+
+            const angleStep = (2 * Math.PI) / n;
+
+            for (let i = 0; i < n; i++) {
+                const start = i * angleStep + rotation;
+                const end = start + angleStep;
+                const color = COLORS[i % COLORS.length];
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, radius, start, end);
+                ctx.closePath();
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                const mid = start + angleStep / 2;
+                const textRadius = radius * 0.62;
+                const tx = cx + Math.cos(mid) * textRadius;
+                const ty = cy + Math.sin(mid) * textRadius;
+
+                ctx.save();
+                ctx.translate(tx, ty);
+                ctx.rotate(mid);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px "PingFang SC","Helvetica Neue",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+                const label = STATE.options[i];
+                const displayText = label.length > 6 ? label.slice(0, 5) + '…' : label;
+                ctx.fillText(displayText, 0, 0);
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius + 2, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            const grad = ctx.createRadialGradient(cx, cy, radius * 0.1, cx, cy, radius);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        // ================================================================
+        //  转盘旋转逻辑
+        // ================================================================
+        function getSpinResult(rotation) {
+            const n = STATE.options.length;
+            if (n === 0) return null;
+            const angleStep = (2 * Math.PI) / n;
+            const pointerAngle = -Math.PI / 2;
+            let relAngle = pointerAngle - rotation;
+            relAngle = ((relAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            const idx = Math.floor(relAngle / angleStep);
+            return idx % n;
+        }
+
+        let animFrameId = null;
+        let spinStartTime = 0;
+        let spinDuration = 0;
+        let spinStartRotation = 0;
+        let spinTargetRotation = 0;
+        let spinResultIndex = -1;
+
+        function startSpin() {
+            if (STATE.isSpinning) return;
+            if (STATE.options.length === 0) {
+                showResult('⚠️', '请添加选项', '先去编辑添加一些选项吧');
+                return;
+            }
+
+            const rand = new Uint32Array(1);
+            crypto.getRandomValues(rand);
+            const randFloat = rand[0] / (0xFFFFFFFF + 1);
+
+            const extraTurns = 3 + randFloat * 3;
+            const targetAngle = extraTurns * 2 * Math.PI + randFloat * 2 * Math.PI;
+            const totalRotation = STATE.wheelRotation + targetAngle;
+
+            spinStartRotation = STATE.wheelRotation;
+            spinTargetRotation = totalRotation;
+            spinDuration = 3000 + randFloat * 1500;
+            spinStartTime = performance.now();
+            STATE.isSpinning = true;
+            spinBtn.textContent = '⏳ 旋转中...';
+            spinBtn.disabled = true;
+
+            const finalIdx = getSpinResult(totalRotation);
+            spinResultIndex = finalIdx;
+
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            animateSpin();
+        }
+
+        function animateSpin() {
+            const now = performance.now();
+            const elapsed = now - spinStartTime;
+            const progress = Math.min(elapsed / spinDuration, 1);
+            const ease = 1 - Math.pow(1 - progress, 3);
+            const currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * ease;
+
+            STATE.wheelRotation = currentRotation;
+            drawWheel(currentRotation);
+
+            if (progress < 1) {
+                animFrameId = requestAnimationFrame(animateSpin);
+            } else {
+                STATE.wheelRotation = spinTargetRotation;
+                drawWheel(spinTargetRotation);
+                STATE.isSpinning = false;
+                spinBtn.textContent = '🎯 旋转';
+                spinBtn.disabled = false;
+
+                const idx = spinResultIndex;
+                if (idx >= 0 && idx < STATE.options.length) {
+                    const result = STATE.options[idx];
+                    showResult('🎉', '转盘结果', result);
+                    STATE.spinHistory.push(result);
+                } else {
+                    showResult('😅', '出错了', '请重试');
+                }
+                spinResultIndex = -1;
+            }
+        }
+
+        function resetWheel() {
+            if (STATE.isSpinning) return;
+            STATE.wheelRotation = 0;
+            drawWheel(0);
+        }
+
+        // ================================================================
+        //  结果弹窗
+        // ================================================================
+        function showResult(emoji, title, text) {
+            resultEmoji.textContent = emoji || '🎉';
+            resultTitle.textContent = title || '结果';
+            resultText.textContent = text || '—';
+            resultOverlay.classList.add('open');
+        }
+
+        closeResultBtn.addEventListener('click', () => {
+            resultOverlay.classList.remove('open');
+        });
+        resultOverlay.addEventListener('click', (e) => {
+            if (e.target === resultOverlay) resultOverlay.classList.remove('open');
+        });
+
+        // ================================================================
+        //  编辑模态框
+        // ================================================================
+        function openEditModal() {
+            modalTitleInput.value = STATE.title;
+            renderModalOptions();
+            editModal.classList.add('open');
+        }
+
+        function closeEditModal() {
+            editModal.classList.remove('open');
+        }
+
+        function renderModalOptions() {
+            modalOptionsList.innerHTML = '';
+            STATE.options.forEach((opt, idx) => {
+                const div = document.createElement('div');
+                div.className = 'option-item';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = opt;
+                input.dataset.index = idx;
+                input.addEventListener('input', (e) => {
+                    STATE.options[parseInt(e.target.dataset.index)] = e.target.value;
+                });
+                const delBtn = document.createElement('button');
+                delBtn.className = 'del-btn';
+                delBtn.textContent = '✕';
+                delBtn.addEventListener('click', () => {
+                    STATE.options.splice(idx, 1);
+                    renderModalOptions();
+                });
+                div.appendChild(input);
+                div.appendChild(delBtn);
+                modalOptionsList.appendChild(div);
+            });
+        }
+
+        modalAddOptionBtn.addEventListener('click', () => {
+            const val = modalNewOptionInput.value.trim();
+            if (val) {
+                STATE.options.push(val);
+                modalNewOptionInput.value = '';
+                renderModalOptions();
+                modalOptionsList.scrollTop = modalOptionsList.scrollHeight;
+            }
+        });
+        modalNewOptionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') modalAddOptionBtn.click();
+        });
+
+        modalSaveBtn.addEventListener('click', () => {
+            const newTitle = modalTitleInput.value.trim() || '决策';
+            STATE.title = newTitle;
+            mainTitle.textContent = newTitle;
+            STATE.options = STATE.options.filter(o => o.trim() !== '');
+            if (STATE.options.length === 0) {
+                STATE.options = ['选项1', '选项2'];
+            }
+            drawWheel(STATE.wheelRotation);
+            closeEditModal();
+        });
+
+        modalCancelBtn.addEventListener('click', closeEditModal);
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) closeEditModal();
+        });
+
+        editBtn.addEventListener('click', openEditModal);
+        settingsBtn.addEventListener('click', openEditModal);
+
+        // ================================================================
+        //  导航切换
+        // ================================================================
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const tab = item.dataset.tab;
+                switchTab(tab);
+            });
+        });
+
+        function switchTab(tab) {
+            STATE.currentTab = tab;
+            navItems.forEach(n => n.classList.remove('active'));
+            document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+            document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+            const subtitles = {
+                wheel: '转盘决定',
+                number: '随机数字',
+                coin: '抛硬币'
+            };
+            tabSubtitle.textContent = subtitles[tab] || '';
+            editBtn.style.display = tab === 'wheel' ? 'flex' : 'none';
+            mainTitle.textContent = tab === 'wheel' ? STATE.title : (tab === 'number' ? '随机数字' : '抛硬币');
+        }
+
+        // ================================================================
+        //  数字页面
+        // ================================================================
+        function generateRandomNumber() {
+            let min = parseInt(rangeMin.value) || 1;
+            let max = parseInt(rangeMax.value) || 100;
+            if (min > max) {
+                const tmp = min;
+                min = max;
+                max = tmp;
+                rangeMin.value = min;
+                rangeMax.value = max;
+            }
+            if (min < 1) { min = 1;
+                rangeMin.value = 1; }
+            if (max < 1) { max = 1;
+                rangeMax.value = 1; }
+            rangeDisplay.textContent = `${min} ~ ${max}`;
+
+            const range = max - min + 1;
+            let randVal;
+            if (range <= 0) {
+                randVal = min;
+            } else {
+                const rand = new Uint32Array(1);
+                crypto.getRandomValues(rand);
+                randVal = min + (rand[0] % range);
+            }
+            numberDisplay.textContent = randVal;
+            numberDisplay.classList.remove('pop');
+            void numberDisplay.offsetWidth;
+            numberDisplay.classList.add('pop');
+        }
+
+        generateNumberBtn.addEventListener('click', generateRandomNumber);
+        rangeMin.addEventListener('change', () => {
+            const val = parseInt(rangeMin.value) || 1;
+            rangeMin.value = Math.max(1, val);
+            rangeDisplay.textContent = `${rangeMin.value} ~ ${rangeMax.value}`;
+        });
+        rangeMax.addEventListener('change', () => {
+            const val = parseInt(rangeMax.value) || 1;
+            rangeMax.value = Math.max(1, val);
+            rangeDisplay.textContent = `${rangeMin.value} ~ ${rangeMax.value}`;
+        });
+        generateRandomNumber();
+
+        // ================================================================
+        //  硬币页面 - 上下翻转 (rotateX) 且结果与弹窗一致
+        // ================================================================
+        function flipCoin() {
+            if (STATE.isFlipping) return;
+            STATE.isFlipping = true;
+            flipCoinBtn.disabled = true;
+            flipCoinBtn.textContent = '⏳ 翻转中...';
+
+            const rand = new Uint32Array(1);
+            crypto.getRandomValues(rand);
+            const result = (rand[0] % 2 === 0) ? 'yes' : 'no';
+
+            const extraTurns = 3 + Math.random() * 2;
+            let targetDeg = (result === 'yes') ? 0 : 180;
+            targetDeg += extraTurns * 360;
+
+            const currentDeg = STATE.coinRotationX % 360;
+            let delta = targetDeg - currentDeg;
+            if (delta < 0) delta += 360;
+            if (delta < 3 * 360) delta += 3 * 360;
+            const newRotation = STATE.coinRotationX + delta;
+
+            STATE.coinRotationX = newRotation;
+            coin3d.style.transform = `rotateX(${newRotation}deg)`;
+            coin3d.classList.add('flipping');
+
+            setTimeout(() => {
+                coin3d.classList.remove('flipping');
+                STATE.isFlipping = false;
+                flipCoinBtn.disabled = false;
+                flipCoinBtn.textContent = '🪙 抛硬币';
+
+                const turns = Math.round(STATE.coinRotationX / 360);
+                let finalAngle;
+                if (result === 'yes') {
+                    finalAngle = turns * 360;
+                } else {
+                    finalAngle = turns * 360 + 180;
+                }
+                while (finalAngle < STATE.coinRotationX) {
+                    finalAngle += 360;
+                }
+                STATE.coinRotationX = finalAngle;
+                coin3d.style.transform = `rotateX(${finalAngle}deg)`;
+
+                if (result === 'yes') {
+                    STATE.yesCount++;
+                    yesCount.textContent = STATE.yesCount;
+                    showResult('✅', '正面', 'YES');
+                } else {
+                    STATE.noCount++;
+                    noCount.textContent = STATE.noCount;
+                    showResult('❌', '反面', 'NO');
+                }
+            }, 1200);
+        }
+
+        flipCoinBtn.addEventListener('click', flipCoin);
+        coinScene.addEventListener('click', flipCoin);
+
+        // ================================================================
+        //  事件绑定 - 转盘
+        // ================================================================
+        spinBtn.addEventListener('click', startSpin);
+        resetSpinBtn.addEventListener('click', resetWheel);
+
+        // ================================================================
+        //  键盘快捷键
+        // ================================================================
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const tab = STATE.currentTab;
+                if (tab === 'wheel' && !STATE.isSpinning) startSpin();
+                else if (tab === 'number') generateRandomNumber();
+                else if (tab === 'coin') flipCoin();
+                e.preventDefault();
+            }
+            if (e.key === 'Escape') {
+                resultOverlay.classList.remove('open');
+                editModal.classList.remove('open');
+            }
+        });
+
+        // ================================================================
+        //  初始化
+        // ================================================================
+        function init() {
+            drawWheel(0);
+            mainTitle.textContent = STATE.title;
+            editBtn.style.display = 'flex';
+            tabSubtitle.textContent = '转盘决定';
+            switchTab('wheel');
+
+            STATE.coinRotationX = 0;
+            coin3d.style.transform = 'rotateX(0deg)';
+            yesCount.textContent = '0';
+            noCount.textContent = '0';
+        }
+
+        init();
+
+        console.log('🎡 决策助手已启动！');
+        console.log('💡 按 空格/回车 触发当前页面的主要操作');
+        console.log('💡 按 ESC 关闭弹窗');
+    </script>
+
+</body>
+</html>
